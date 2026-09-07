@@ -963,11 +963,11 @@
     revealEls.forEach(el => io.observe(el));
   }
 
-  // Contact form validation + mailto handoff
-  // NOTE: No backend is connected yet. This currently opens the visitor's
-  // email client with a pre-filled message addressed to Raxcel's email.
-  // To connect a real backend later, replace the code inside the submit
-  // handler below with a fetch() call to a service such as Formspree or EmailJS.
+  // Contact form validation + real submission via Formspree.
+  // Messages submitted on the site are delivered straight to
+  // adlawanlacandularaxcel@gmail.com — visitors never leave the page.
+  const FORMSPREE_ENDPOINT = 'https://formspree.io/f/xbgjzqkk';
+
   const form = document.getElementById('contactForm');
   const statusBox = document.getElementById('formStatus');
 
@@ -977,7 +977,21 @@
     return condition;
   }
 
-  form.addEventListener('submit', (e) => {
+  function showStatus(message, ok) {
+    statusBox.className = 'form-status show' + (ok ? ' ok' : '');
+    if (!ok) {
+      statusBox.style.background = '#FBEAEA';
+      statusBox.style.color = '#B4433A';
+      statusBox.style.border = '1px solid #F0C8C4';
+    } else {
+      statusBox.style.background = '';
+      statusBox.style.color = '';
+      statusBox.style.border = '';
+    }
+    statusBox.textContent = message;
+  }
+
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('name').value.trim();
     const email = document.getElementById('email').value.trim();
@@ -989,21 +1003,34 @@
     const messageOk = validateField('fieldMessage', message.length > 3);
 
     if (!(nameOk && emailOk && messageOk)) {
-      statusBox.className = 'form-status show';
-      statusBox.style.background = '#FBEAEA';
-      statusBox.style.color = '#B4433A';
-      statusBox.style.border = '1px solid #F0C8C4';
-      statusBox.textContent = 'Please fill in all fields correctly.';
+      showStatus('Please fill in all fields correctly.', false);
       return;
     }
 
-    const subject = encodeURIComponent(`Portfolio inquiry from ${name}`);
-    const body = encodeURIComponent(`${message}\n\n— ${name} (${email})`);
-    window.location.href = `mailto:adlawanlacandularaxcel@gmail.com?subject=${subject}&body=${body}`;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
 
-    statusBox.className = 'form-status show ok';
-    statusBox.textContent = 'Opening your email client to send this message...';
-    form.reset();
+    try {
+      const response = await fetch(FORMSPREE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: new FormData(form)
+      });
+
+      if (response.ok) {
+        showStatus('Thanks! Your message has been sent — I\'ll get back to you soon.', true);
+        form.reset();
+      } else {
+        showStatus('Something went wrong. Please try again or email me directly.', false);
+      }
+    } catch (err) {
+      showStatus('Network error. Please try again or email me directly.', false);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalBtnText;
+    }
   });
 </script>
 
